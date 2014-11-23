@@ -1,0 +1,191 @@
+#Practical Machine Learning: Course Project
+#JDeaza
+#November 23, 2014
+
+##Abstract
+
+In this report I going to forecast the performance barbell lifts correctly and incorrectly in 5 different ways. I doing the forecast using Practical Machine Learning, I use data by http://groupware.les.inf.puc-rio.br/har, that contains classe variable (variable to predict) and serveral predictors variables that no necessary are the predictors. This report has 4 sections. The first one is the code to download the training and testing data, and upload the packages that I will use in this report; the second section I will do cleaning of data; the third section has the brief exploratory analysis; the fourth section shows the several models that I going to estimate and the respective analysis and the last one section I make the mains conclusions.
+
+##Downloading data
+
+The data for this report you can download of the following links:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+Firstly I create a folder to save the data files, second I download the training and testing data and finally I upload the data in R (format csv).
+
+###Training data
+ 
+```{r, echo=TRUE}
+if(!file.exists("./cproject")) {dir.create("./cproject")}
+training <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(training, destfile = "./cproject/pml-training.csv", method = "curl")
+dtraining <- read.csv("./cproject/pml-training.csv", na.strings = c("NA", ""))
+```
+
+###Testing data
+
+```{r, echo=TRUE}
+testing <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(testing, destfile = "./cproject/pml-testing.csv", method = "curl")
+dtesting <- read.csv("./cproject/pml-testing.csv", na.strings = c("NA", ""))
+````
+
+###Uploading packages
+
+I will use the packages caret and randonForest to estimate the models.
+
+```{r, echo=TRUE, message=FALSE}
+#install.packages("caret")
+library(caret)
+#install.packages("randomForest")
+library(randomForest)
+```
+
+##Cleaning data
+
+The training and testing data have several variables with NA values, the first step is 
+find the columns with NA values.
+
+```{r, echo=TRUE}
+table(colSums(is.na(dtraining)))
+table(colSums(is.na(dtesting)))
+```
+
+###Cleaning training and testing data
+
+After I find the colums with NA values, I will remove these variables.
+
+```{r, echo=TRUE}
+trainingClean <- dtraining[,!sapply(dtraining,function(x) any(is.na(x)))]
+testingClean <- dtesting[,!sapply(dtesting,function(x) any(is.na(x)))]
+```
+
+###Removing variables that there are not predictors
+
+In the training and testing data there are predictors variables, that there are not predictors of the variable classe (shows the performance barbell lifts correctly and incorrectly in 5 different ways). These variables are: X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window.
+
+```{r, echo=TRUE}
+dfTraining <- subset(trainingClean, select = -c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window))
+
+dfTesting <- subset(testingClean, select = -c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window))
+```
+
+##Exploratory analysis
+
+I will do a brief exploratory analysis, to show the distribution of the classe variable
+
+```{r, echo=TRUE}
+plot(trainingClean$classe)
+```
+
+We can see that the A category into class variable, has 5580 observations, follow of the B category with 3797.
+
+##Models building
+
+I will estimate three models. 
+The first one I use the randomForest package, I use the mtry default to obtain the best outcome.
+
+###Model 1
+
+```{r, echo=TRUE}
+set.seed(10000)
+model <- randomForest(classe ~., data = dfTraining)
+model
+```
+
+With the first model I obtain a good accuracy, only 0.3% of error rate. But this result will be interpreted carrefully, because despite you could obtain a good accuracy, this method has the cons of overfitting. For this reason I estimate two adittional models to compare and can see if the forecast among three models is different.
+
+###Model 2
+
+For the second model I take a random sample of the training data, and I use this sample to estimate this model. The random sample is of 8000 observations, that is the 40.8% of the original training data.
+
+```{r, echo=TRUE}
+straining <- sample(nrow(dfTraining), 8000)
+trainingFin <- dfTraining[straining, ]
+``` 
+
+```{r, echo=TRUE}
+set.seed(10000)
+model1 <- train(classe ~., data = trainingFin, method = "rf", prox = TRUE, trControl = trainControl(method = "cv", number = 4, allowParallel = TRUE))
+model1
+```
+
+With the second model I obtain a good accuracy too, with mtry = 27 the accuracy is 98.2%, accuracy percent is similar to model two (with all observations).
+
+###Model 3
+
+In the last model I spliting the training data tidy into training and testing data. After I make the confusion matrix to estimate out-sample error.
+
+Splitting data:
+
+```{r, echo=TRUE}
+inTrain <- createDataPartition(y = trainingFin$classe, p = 0.7, list = FALSE)
+
+ptraining = trainingFin[inTrain,]
+ptesting = trainingFin[-inTrain,]
+```
+
+Estimation model 3:
+
+```{r, echo=TRUE}
+set.seed(10000)
+model2 <- train(classe ~., data = ptraining, method = "rf", prox = TRUE, trControl = trainControl(method = "cv", number = 4, allowParallel = TRUE))
+model2
+```
+
+With the model 3, I obtain a good accuracy with mtry = 27 (97.6%), a percent a bit less that with the model two (with the all training observations). 
+
+Finally, I will do predictions and confusion matrix to obtain out-sample error:
+
+```{r, echo=TRUE}
+predictions <- predict(model2, newdata = ptesting)
+confusionMatrix(predictions, ptesting$classe)
+```
+
+With te confusion matrix we can see that the out-sample error is low, I obtain a 97.7% of accuracy with 95% CI : (0.9707, 0.983).
+
+The last part is to compare the forecast of the three models to see if there are differences among its:
+
+```{r, echo=TRUE}
+answers <- predict(model, dfTesting)
+answers1 <- predict(model1, dfTesting)
+answers2 <- predict(model2, dfTesting)
+answers
+answers1
+answers2
+```
+
+We can see that the forecast is the same among the different models.
+
+Finally I use the code to suggested in the project course to built to each of the 20 test cases in the testing data set:
+
+```{r, echo=TRUE}
+pml_write_files = function(x) {
+     n = length(x)
+     for (i in 1:n) {
+         filename = paste0("problem_id_", i, ".txt")
+         write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+             col.names = FALSE)
+    }
+}
+ 
+pml_write_files(answers)
+```
+
+##Conclusions
+
+Both training and testing data, have a lot variables with NA values, we need clean this data.
+
+The outcome of the model using randomForest must be interpreted carefully, because this model has the cons of overfitting. 
+
+With the three models I obtain a good accuracy, above 97%
+
+With cross validation I obtain a good results, 97.7% of accuracy. That's is the out-sample error is low.
+
+Forecast is the same among the three models.
+
+
+
