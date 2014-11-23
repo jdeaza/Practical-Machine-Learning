@@ -187,5 +187,9 @@ With cross validation I obtain a good results, 97.7% of accuracy. That's is the 
 
 Forecast is the same among the three models.
 
+##References
+
+\[1]: L. Breiman. Random forests. *Machine Learning*, pages 5-32, 2001
+
 
 
