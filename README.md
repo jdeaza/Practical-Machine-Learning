@@ -10,6 +10,5 @@ We can see the report in the folowing link:
 
 http://rpubs.com/jdeaza/44009
 
-or
 
-file:///Users/javierdeaza/Documents/Johns%20Hopkins%20Univesity/Practical%20Machine%20Learning/Semana%203/Course_Project.html
+
